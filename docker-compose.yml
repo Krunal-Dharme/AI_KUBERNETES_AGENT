@@ -1,0 +1,25 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    # Do NOT add environment: KUBECONFIG_PATH=${...} here — it overrides backend/.env
+    # with an empty value when the host shell variable is unset.
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+        NEXT_PUBLIC_INSFORGE_BASE_URL: ${INSFORGE_BASE_URL:-https://buhwez72.ap-southeast.insforge.app}
+        NEXT_PUBLIC_INSFORGE_ANON_KEY: ${INSFORGE_ANON_KEY:-}
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+      - NEXT_PUBLIC_INSFORGE_BASE_URL=${INSFORGE_BASE_URL:-https://buhwez72.ap-southeast.insforge.app}
+      - NEXT_PUBLIC_INSFORGE_ANON_KEY=${INSFORGE_ANON_KEY:-}
+    depends_on:
+      - backend

@@ -1,0 +1,28 @@
+# Run on GCP VM pipeline-demo where kubeconfig and gcloud auth already work.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gke.yml up --build
+#
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.gke
+    volumes:
+      - /home/kunudharme/.kube/config:/kube/config:ro
+      - /home/kunudharme/.config/gcloud:/root/.config/gcloud:ro
+    environment:
+      KUBECONFIG_PATH: /kube/config
+      CLOUDSDK_CONFIG: /root/.config/gcloud
+      KUBECTL_SSH_HOST: ""
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://34.47.189.50:8000
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://34.47.189.50:8000
+    ports:
+      - "3000:3000"
