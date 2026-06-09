@@ -9,7 +9,7 @@ services:
       dockerfile: Dockerfile.gke
     volumes:
       - /home/kunudharme/.kube/config:/kube/config:ro
-      - /home/kunudharme/.config/gcloud:/root/.config/gcloud:ro
+      - /home/kunudharme/.config/gcloud:/root/.config/gcloud
     environment:
       KUBECONFIG_PATH: /kube/config
       CLOUDSDK_CONFIG: /root/.config/gcloud
