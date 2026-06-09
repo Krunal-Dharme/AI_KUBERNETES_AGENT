@@ -27,7 +27,10 @@ docker compose -f docker-compose.yml -f docker-compose.gke.yml up --build
 This mounts:
 
 - `/home/kunudharme/.kube/config` → `/kube/config`
-- `/home/kunudharme/.config/gcloud` → `/root/.config/gcloud` (for `gke-gcloud-auth-plugin`)
+- `/home/kunudharme/.config/gcloud` → `/root/.config/gcloud` (for `gcloud` + `gke-gcloud-auth-plugin`)
+
+The GKE image installs `google-cloud-cli`, `kubectl`, and `gke-gcloud-auth-plugin`.
+Startup fails fast if `gcloud auth list` or `kubectl get nodes` does not succeed.
 
 Verify:
 

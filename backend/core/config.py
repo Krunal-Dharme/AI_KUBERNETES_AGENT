@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     kubectl_ssh_kubeconfig: str = "/home/kunudharme/.kube/config"
     kubectl_ssh_options: str = "-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
 
+    # When true, fail startup unless gcloud auth and kubectl get nodes succeed.
+    gke_validate_on_startup: bool = False
+
     insforge_base_url: str = ""
     insforge_anon_key: str = ""
 

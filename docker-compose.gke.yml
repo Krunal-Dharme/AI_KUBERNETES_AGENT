@@ -13,6 +13,8 @@ services:
     environment:
       KUBECONFIG_PATH: /kube/config
       CLOUDSDK_CONFIG: /root/.config/gcloud
+      USE_GKE_GCLOUD_AUTH_PLUGIN: "True"
+      GKE_VALIDATE_ON_STARTUP: "true"
       KUBECTL_SSH_HOST: ""
     ports:
       - "8000:8000"

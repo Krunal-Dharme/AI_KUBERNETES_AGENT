@@ -6,6 +6,7 @@ from api.clusters import router as clusters_router
 from api.health import router as health_router
 from api.investigate import router as investigate_router
 from core.config import settings
+from core.gke_validation import validate_gke_startup
 from core.kubeconfig import get_kubeconfig_status
 from core.logging import setup_logging
 
@@ -34,7 +35,11 @@ app.include_router(investigate_router)
 async def on_startup() -> None:
     kubeconfig = get_kubeconfig_status()
     if kubeconfig["configured"]:
-        logger.info("Kubeconfig ready: {}", kubeconfig["path"])
+        logger.info("Kubeconfig ready: {} (mode={})", kubeconfig["path"], kubeconfig.get("mode"))
     else:
         logger.warning("Kubeconfig not ready: {}", kubeconfig["error"])
+
+    if settings.gke_validate_on_startup:
+        validate_gke_startup()
+
     logger.info("AI Kubernetes Agent backend started")
