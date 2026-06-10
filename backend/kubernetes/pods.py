@@ -36,15 +36,36 @@ class PodInspector:
 
         items = data.get("items", [])
         problematic_pods: list[dict] = []
+        restarting_pods: list[dict] = []
+        status_counts = {
+            "running": 0,
+            "failed": 0,
+            "pending": 0,
+            "succeeded": 0,
+            "unknown": 0,
+        }
 
         for pod in items:
+            phase = pod.get("status", {}).get("phase", "Unknown").lower()
+            if phase in status_counts:
+                status_counts[phase] += 1
+            else:
+                status_counts["unknown"] += 1
+
             issue = self._detect_pod_issue(pod)
             if issue:
                 problematic_pods.append(issue)
+                continue
+
+            restart_info = self._detect_restarting_pod(pod)
+            if restart_info:
+                restarting_pods.append(restart_info)
 
         return {
             "healthy": len(problematic_pods) == 0,
             "problematic_pods": problematic_pods,
+            "restarting_pods": restarting_pods,
+            "status_counts": status_counts,
             "total_pods": len(items),
         }
 
@@ -107,6 +128,27 @@ class PodInspector:
             "status": detected_status,
             "phase": phase,
             "details": details,
+        }
+
+    def _detect_restarting_pod(self, pod: dict) -> dict | None:
+        metadata = pod.get("metadata", {})
+        status = pod.get("status", {})
+        phase = status.get("phase", "")
+
+        if phase not in {"Running", "Succeeded"}:
+            return None
+
+        container_statuses = status.get("containerStatuses") or []
+        total_restarts = sum(cs.get("restartCount", 0) for cs in container_statuses)
+        if total_restarts <= 0:
+            return None
+
+        return {
+            "name": metadata.get("name", "unknown"),
+            "namespace": metadata.get("namespace", "default"),
+            "phase": phase,
+            "restart_count": total_restarts,
+            "status": "Restarting",
         }
 
     def _is_stuck_creating(self, metadata: dict, threshold_seconds: int) -> bool:

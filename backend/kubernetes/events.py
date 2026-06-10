@@ -67,4 +67,7 @@ class EventsAnalyzer:
             "object_name": involved.get("name", ""),
             "message": message[:300],
             "count": event.get("count", 1),
+            "last_timestamp": event.get("lastTimestamp")
+            or event.get("eventTime")
+            or event.get("firstTimestamp", ""),
         }

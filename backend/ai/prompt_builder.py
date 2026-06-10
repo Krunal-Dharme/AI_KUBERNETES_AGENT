@@ -1,51 +1,80 @@
 import json
 from typing import Any
 
-SYSTEM_PROMPT = """You are a Senior Kubernetes SRE diagnosing production incidents.
+SYSTEM_PROMPT = """You are a Senior Kubernetes SRE producing a production-grade incident investigation report.
 
-Your job is to analyze collected Kubernetes evidence and produce a precise, actionable diagnosis.
+You receive FULL collected evidence from an automated investigation. Your job is to enrich pre-detected findings with root cause analysis, remediation, and confidence reasoning.
 
 Rules:
-- Correlate evidence across pods, logs, events, deployments, and networking.
-- Identify the most likely root cause, not just symptoms.
-- Be specific: name resources (pod, deployment, namespace) when possible.
-- Provide practical, Kubernetes-specific fixes. Avoid generic advice.
-- Suggest real kubectl commands a beginner can run.
-- Assign a confidence score (0-100) based on evidence strength.
-- If evidence is insufficient, say so and lower confidence.
+- Report ALL issues found. Do NOT stop at the first issue.
+- Every finding must have severity: Critical, High, Medium, Low, or Info.
+- Use ONLY investigation commands already provided in pre_detected_findings — do NOT invent new kubectl commands.
+- Correlate pods, logs, events, deployments, replicasets, nodes, services, and ingress.
+- Be specific: name namespaces and resources.
+- Assign per-finding confidence (0-100) with explicit reasoning citing evidence.
+- Provide targeted remediation: immediate fix, verification steps, rollback steps.
 
-You MUST respond with valid JSON only (no markdown, no extra text) using this schema:
+You MUST respond with valid JSON only (no markdown) using this schema:
 {
-  "root_cause": "One concise sentence stating the root cause",
-  "explanation": "2-4 sentences correlating pod status, logs, events, deployments, and network findings",
-  "fix": "Clear actionable fix steps",
-  "kubectl_command": "Primary kubectl command to apply or investigate the fix",
-  "prevention_recommendation": "How to prevent this issue in the future",
-  "confidence": 85,
-  "confidence_reasoning": "Why this confidence level, citing specific evidence"
-}"""
+  "executive_summary": "2-3 sentence overview of cluster state and top issues",
+  "cluster_health_score": 65,
+  "prevention_recommendation": "Cluster-wide prevention advice",
+  "findings": [
+    {
+      "namespace": "default",
+      "resource_type": "Pod",
+      "affected_resource": "imagepull-test",
+      "root_cause": "One sentence root cause",
+      "explanation": "2-4 sentences correlating evidence",
+      "confidence": 95,
+      "confidence_reasoning": "Bullet-style reasoning citing specific evidence",
+      "remediation": {
+        "immediate_fix": "Specific fix steps",
+        "verification_steps": ["kubectl ..."],
+        "rollback_steps": ["kubectl ..."]
+      }
+    }
+  ]
+}
+
+Match findings to pre_detected_findings by namespace + resource_type + affected_resource."""
 
 
-def build_messages(investigation: dict[str, Any]) -> list[dict[str, str]]:
-    """Build structured LLM messages from investigation evidence."""
-    user_content = f"""Analyze the following Kubernetes investigation evidence and return your diagnosis as JSON.
+def build_messages(investigation: dict[str, Any], pre_detected_findings: list[dict]) -> list[dict[str, str]]:
+    """Build structured LLM messages from full investigation evidence."""
+    user_content = f"""Analyze this Kubernetes investigation and return an SRE report as JSON.
+
+## Pre-Detected Findings (use these resources; do not invent new ones)
+{json.dumps(pre_detected_findings, indent=2)}
+
+## Node Status
+{json.dumps(investigation.get("nodes", {}), indent=2)}
 
 ## Pod Status
 {json.dumps(investigation.get("pods", {}), indent=2)}
 
-## Logs
+## Container Logs
 {json.dumps(investigation.get("logs", {}), indent=2)}
 
 ## Events
 {json.dumps(investigation.get("events", {}), indent=2)}
 
-## Deployment Health
+## Deployments
 {json.dumps(investigation.get("deployments", {}), indent=2)}
 
-## Networking Findings
+## ReplicaSets
+{json.dumps(investigation.get("replicasets", {}), indent=2)}
+
+## Networking (Services/Endpoints)
 {json.dumps(investigation.get("network", {}), indent=2)}
 
-Correlate all sections above. Return JSON only."""
+## Ingress
+{json.dumps(investigation.get("ingress", {}), indent=2)}
+
+## Investigation Timeline
+{json.dumps(investigation.get("timeline", []), indent=2)}
+
+Enrich ALL pre-detected findings. Return JSON only."""
 
     return [
         {"role": "system", "content": SYSTEM_PROMPT},

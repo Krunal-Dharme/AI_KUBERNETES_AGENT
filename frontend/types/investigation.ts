@@ -1,3 +1,50 @@
+export type Severity = "Critical" | "High" | "Medium" | "Low" | "Info";
+
+export interface Remediation {
+  immediate_fix: string;
+  verification_steps: string[];
+  rollback_steps: string[];
+}
+
+export interface Finding {
+  id: string;
+  title: string;
+  severity: Severity;
+  category: string;
+  affected_resource: string;
+  namespace: string;
+  resource_type: string;
+  current_state: string;
+  evidence: string[];
+  root_cause?: string;
+  explanation?: string;
+  investigation_commands: string[];
+  remediation: Remediation;
+  confidence: number;
+  confidence_reasoning?: string;
+}
+
+export interface ClusterHealthSummary {
+  nodes_ready: string;
+  nodes_total: number;
+  pods_running: number;
+  pods_failed: number;
+  pods_pending: number;
+  pods_total: number;
+  deployments_healthy: number;
+  deployments_degraded: number;
+  services_missing_endpoints: number;
+  critical_findings: number;
+  high_findings: number;
+  warning_findings: number;
+}
+
+export interface TimelineStep {
+  step: number;
+  action: string;
+  status: string;
+}
+
 export interface Diagnosis {
   root_cause: string;
   explanation: string;
@@ -7,6 +54,15 @@ export interface Diagnosis {
   prevention_recommendation?: string;
   confidence_reasoning?: string;
   cluster_healthy?: boolean;
+  executive_summary?: string;
+  cluster_health_score?: number;
+  cluster_health_summary?: ClusterHealthSummary;
+  investigation_timeline?: TimelineStep[];
+  findings?: Finding[];
+  validation_commands?: string[];
+  remediation_steps?: string[];
+  verification_steps?: string[];
+  rollback_commands?: string[];
 }
 
 export interface ClusterInfo {
@@ -33,6 +89,9 @@ export interface InvestigationPayload {
   events: Record<string, unknown>;
   deployments: Record<string, unknown>;
   network: Record<string, unknown>;
+  replicasets?: Record<string, unknown>;
+  ingress?: Record<string, unknown>;
+  timeline?: TimelineStep[];
 }
 
 export interface InvestigateResponse {

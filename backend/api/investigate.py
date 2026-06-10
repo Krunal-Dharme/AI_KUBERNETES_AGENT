@@ -73,7 +73,7 @@ def investigate(request: InvestigateRequest | None = None) -> InvestigateRespons
     publisher.publish("ai", "AI Reasoning", "in_progress")
 
     if cluster_healthy:
-        diagnosis_data = healthy_cluster_diagnosis(cluster_context)
+        diagnosis_data = healthy_cluster_diagnosis(cluster_context, investigation_data)
         diagnosis_data["cluster_healthy"] = True
         publisher.publish("complete", "Cluster Healthy", "completed")
     else:

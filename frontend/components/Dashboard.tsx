@@ -22,7 +22,7 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-8">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
         <header className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white">AI Kubernetes Agent</h1>

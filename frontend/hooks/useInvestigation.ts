@@ -53,7 +53,9 @@ export function useInvestigation(
       await insforge.database.from("investigations").insert({
         user_id: user.id,
         session_id: sessionId,
-        root_cause: response.diagnosis.root_cause,
+        root_cause:
+          response.diagnosis.executive_summary ||
+          response.diagnosis.root_cause,
         namespace: extractNamespace(response),
         confidence: response.diagnosis.confidence,
         status: response.diagnosis.cluster_healthy ? "healthy" : "completed",
