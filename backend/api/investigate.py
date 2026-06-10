@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from loguru import logger
+from pydantic import ValidationError
 
 from ai.root_cause_analyzer import AIAgent
 from core.kubeconfig import get_kubeconfig_status
@@ -14,6 +15,7 @@ from models.investigation import (
 from services.health_check import healthy_cluster_diagnosis, is_cluster_healthy
 from services.investigation import InvestigationService
 from services.progress import ProgressPublisher
+from services.report_builder import build_sre_report
 
 router = APIRouter()
 
@@ -72,20 +74,53 @@ def investigate(request: InvestigateRequest | None = None) -> InvestigateRespons
 
     publisher.publish("ai", "AI Reasoning", "in_progress")
 
-    if cluster_healthy:
-        diagnosis_data = healthy_cluster_diagnosis(cluster_context, investigation_data)
-        diagnosis_data["cluster_healthy"] = True
-        publisher.publish("complete", "Cluster Healthy", "completed")
-    else:
-        diagnosis_data = AIAgent().diagnose(investigation_data)
+    try:
+        if cluster_healthy:
+            diagnosis_data = healthy_cluster_diagnosis(cluster_context, investigation_data)
+            diagnosis_data["cluster_healthy"] = True
+            publisher.publish("complete", "Cluster Healthy", "completed")
+        else:
+            diagnosis_data = AIAgent().diagnose(investigation_data)
+            diagnosis_data["cluster_healthy"] = False
+            publisher.publish("ai", "AI Reasoning", "completed")
+            publisher.publish("complete", "Root Cause Found", "completed")
+    except Exception as exc:
+        logger.error("Diagnosis build failed, returning rule-based report: {}", exc)
+        diagnosis_data = build_sre_report(investigation_data, llm_response=None, cluster_healthy=False)
         diagnosis_data["cluster_healthy"] = False
+        diagnosis_data["executive_summary"] = (
+            "Investigation completed. AI enrichment failed; showing rule-based findings."
+        )
         publisher.publish("ai", "AI Reasoning", "completed")
         publisher.publish("complete", "Root Cause Found", "completed")
+
+    try:
+        investigation_payload = InvestigationPayload(**investigation_data)
+        diagnosis = Diagnosis(**diagnosis_data)
+    except ValidationError as exc:
+        logger.error("Response validation failed, returning safe minimal diagnosis: {}", exc)
+        investigation_payload = InvestigationPayload(
+            cluster_context=investigation_data.get("cluster_context"),
+            pods=investigation_data.get("pods", {}),
+            logs=investigation_data.get("logs", {}),
+            events=investigation_data.get("events", {}),
+            deployments=investigation_data.get("deployments", {}),
+            network=investigation_data.get("network", {}),
+        )
+        diagnosis = Diagnosis(
+            root_cause="Investigation completed with partial results",
+            explanation="Some report fields could not be validated. Review raw investigation data.",
+            fix="Re-run investigation or inspect cluster manually.",
+            kubectl_command="kubectl get pods -A",
+            confidence=50,
+            cluster_healthy=cluster_healthy,
+            executive_summary="Investigation evidence collected; report formatting encountered validation issues.",
+        )
 
     return InvestigateResponse(
         status="success",
         cluster_context=cluster_context,
-        investigation=InvestigationPayload(**investigation_data),
-        diagnosis=Diagnosis(**diagnosis_data),
+        investigation=investigation_payload,
+        diagnosis=diagnosis,
         session_id=session_id,
     )
