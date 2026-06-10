@@ -55,8 +55,10 @@ class ClusterHealthSummary(BaseModel):
     deployments_healthy: int = 0
     deployments_degraded: int = 0
     services_missing_endpoints: int = 0
+    pods_crashloop: int = 0
     critical_findings: int = 0
     high_findings: int = 0
+    medium_findings: int = 0
     warning_findings: int = 0
 
 

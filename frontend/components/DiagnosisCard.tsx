@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 
+import { ExecutiveDashboard } from "@/components/ExecutiveDashboard";
 import {
   limitAnalysis,
   safeString,
   toBulletLines,
   toTextLines,
 } from "@/lib/report-format";
-import type { Diagnosis, Finding, Severity } from "@/types/investigation";
+import type { Diagnosis, Finding, Severity, TimelineStep } from "@/types/investigation";
 
 interface DiagnosisCardProps {
   diagnosis: Diagnosis | null;
@@ -61,10 +62,27 @@ function CommandList({ commands }: { commands: string[] }) {
   );
 }
 
-function FindingCard({ finding }: { finding: Finding }) {
-  const [open, setOpen] = useState(
-    finding.severity === "Critical" || finding.severity === "High",
+function InvestigationTimeline({ steps }: { steps: TimelineStep[] }) {
+  if (!steps.length) return null;
+
+  return (
+    <section className="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Investigation Timeline
+      </h3>
+      <ol className="mt-2 space-y-1 text-xs text-slate-400">
+        {steps.map((step) => (
+          <li key={step.step}>
+            Step {step.step}: {step.action}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
+}
+
+function FindingCard({ finding }: { finding: Finding }) {
+  const [open, setOpen] = useState(false);
 
   const evidence = toTextLines(finding.evidence as unknown);
   const commands = toTextLines(finding.investigation_commands as unknown, 3, 500);
@@ -73,9 +91,7 @@ function FindingCard({ finding }: { finding: Finding }) {
     3,
     500,
   );
-  const confidenceReasons = toBulletLines(
-    finding.confidence_reasoning as unknown,
-  );
+  const confidenceReasons = toBulletLines(finding.confidence_reasoning as unknown);
   const rootCause = safeString(finding.root_cause);
   const analysis = limitAnalysis(finding.explanation);
   const immediateFix = safeString(finding.remediation?.immediate_fix);
@@ -162,6 +178,9 @@ export function DiagnosisCard({ diagnosis, clusterContext }: DiagnosisCardProps)
 
   const isHealthy = Boolean(diagnosis.cluster_healthy);
   const findings = Array.isArray(diagnosis.findings) ? diagnosis.findings : [];
+  const timeline = Array.isArray(diagnosis.investigation_timeline)
+    ? diagnosis.investigation_timeline
+    : [];
 
   return (
     <section
@@ -171,12 +190,14 @@ export function DiagnosisCard({ diagnosis, clusterContext }: DiagnosisCardProps)
           : "border-slate-800 bg-slate-900/60"
       }`}
     >
-      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
+      <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-400">
         Investigation Report
         {clusterContext && (
           <span className="ml-2 normal-case text-slate-500">— {clusterContext}</span>
         )}
       </h2>
+
+      <ExecutiveDashboard diagnosis={diagnosis} isHealthy={isHealthy} />
 
       {isHealthy && (
         <div className="mb-4 rounded-lg border border-emerald-700/50 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
@@ -184,48 +205,61 @@ export function DiagnosisCard({ diagnosis, clusterContext }: DiagnosisCardProps)
         </div>
       )}
 
-      {findings.length > 0 ? (
-        <div className="space-y-3">
-          <p className="text-sm text-slate-500">Findings ({findings.length})</p>
-          {findings.map((finding) => (
-            <FindingCard key={finding.id || `${finding.namespace}-${finding.affected_resource}`} finding={finding} />
-          ))}
-        </div>
-      ) : (
-        !isHealthy && (
-          <div className="space-y-4 text-sm">
-            <div>
-              <p className="text-slate-500">Root Cause</p>
-              <p className="mt-1 whitespace-pre-wrap break-words font-medium text-white">
-                {safeString(diagnosis.root_cause)}
-              </p>
-            </div>
-            {diagnosis.explanation && (
+      <div className="space-y-6">
+        <InvestigationTimeline steps={timeline} />
+
+        {findings.length > 0 ? (
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Findings ({findings.length})
+            </h3>
+            {findings.map((finding) => (
+              <FindingCard
+                key={finding.id || `${finding.namespace}-${finding.affected_resource}`}
+                finding={finding}
+              />
+            ))}
+          </section>
+        ) : (
+          !isHealthy && (
+            <section className="space-y-4 rounded-lg border border-slate-800 bg-slate-950/40 p-4 text-sm">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Primary Diagnosis
+              </h3>
               <div>
-                <p className="text-slate-500">Analysis</p>
-                <p className="mt-1 whitespace-pre-wrap break-words text-slate-300">
-                  {limitAnalysis(diagnosis.explanation)}
+                <p className="text-slate-500">Root Cause</p>
+                <p className="mt-1 whitespace-pre-wrap break-words font-medium text-white">
+                  {safeString(diagnosis.root_cause)}
                 </p>
               </div>
-            )}
-            {diagnosis.fix && (
-              <div>
-                <p className="text-slate-500">Immediate Fix</p>
-                <p className="mt-1 whitespace-pre-wrap break-words text-slate-300">
-                  {safeString(diagnosis.fix)}
-                </p>
-              </div>
-            )}
-            {diagnosis.kubectl_command && (
-              <code className="block whitespace-pre-wrap break-all rounded-lg bg-slate-950 px-3 py-2 font-mono text-xs text-emerald-300">
-                {safeString(diagnosis.kubectl_command)}
-              </code>
-            )}
-            <p className="text-slate-500">Confidence: {diagnosis.confidence ?? 0}%</p>
-            <BulletList items={toBulletLines(diagnosis.confidence_reasoning)} />
-          </div>
-        )
-      )}
+              {diagnosis.explanation && (
+                <div>
+                  <p className="text-slate-500">Analysis</p>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-slate-300">
+                    {limitAnalysis(diagnosis.explanation)}
+                  </p>
+                </div>
+              )}
+              {diagnosis.fix && (
+                <div>
+                  <p className="text-slate-500">Immediate Fix</p>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-slate-300">
+                    {safeString(diagnosis.fix)}
+                  </p>
+                </div>
+              )}
+              {diagnosis.kubectl_command && (
+                <div>
+                  <p className="text-slate-500">Investigation Commands</p>
+                  <CommandList commands={[safeString(diagnosis.kubectl_command)]} />
+                </div>
+              )}
+              <p className="text-slate-500">Confidence: {diagnosis.confidence ?? 0}%</p>
+              <BulletList items={toBulletLines(diagnosis.confidence_reasoning)} />
+            </section>
+          )
+        )}
+      </div>
     </section>
   );
 }

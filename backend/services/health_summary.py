@@ -28,10 +28,13 @@ def build_cluster_health_summary(
 
     critical = sum(1 for f in (findings or []) if f.get("severity") == "Critical")
     high = sum(1 for f in (findings or []) if f.get("severity") == "High")
-    warning = sum(
+    medium = sum(1 for f in (findings or []) if f.get("severity") == "Medium")
+    warning = sum(1 for f in (findings or []) if f.get("severity") == "Low")
+
+    crashloop = sum(
         1
-        for f in (findings or [])
-        if f.get("severity") in {"Medium", "Low"}
+        for pod in pods.get("problematic_pods", [])
+        if pod.get("status") == "CrashLoopBackOff"
     )
 
     return ClusterHealthSummary(
@@ -41,6 +44,7 @@ def build_cluster_health_summary(
         pods_failed=status_counts.get("failed", 0),
         pods_pending=status_counts.get("pending", 0),
         pods_total=pods.get("total_pods", 0),
+        pods_crashloop=crashloop,
         deployments_healthy=max(total_deployments - unhealthy_deployments, 0),
         deployments_degraded=unhealthy_deployments,
         services_missing_endpoints=sum(
@@ -48,6 +52,7 @@ def build_cluster_health_summary(
         ),
         critical_findings=critical,
         high_findings=high,
+        medium_findings=medium,
         warning_findings=warning,
     )
 

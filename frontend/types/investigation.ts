@@ -34,8 +34,10 @@ export interface ClusterHealthSummary {
   deployments_healthy: number;
   deployments_degraded: number;
   services_missing_endpoints: number;
+  pods_crashloop?: number;
   critical_findings: number;
   high_findings: number;
+  medium_findings?: number;
   warning_findings: number;
 }
 
