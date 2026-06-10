@@ -8,9 +8,12 @@ from loguru import logger
 
 VALID_SEVERITIES = frozenset({"Critical", "High", "Medium", "Low", "Info"})
 
-MAX_EVIDENCE_ITEMS = 12
-MAX_COMMAND_ITEMS = 6
+MAX_EVIDENCE_ITEMS = 3
+MAX_COMMAND_ITEMS = 3
+MAX_VERIFICATION_ITEMS = 3
 MAX_STRING_LENGTH = 2000
+MAX_EVIDENCE_LINE_LENGTH = 200
+MAX_ANALYSIS_LENGTH = 800
 
 
 def _log_normalized(field: str, original_type: str, finding_id: str = "") -> None:
@@ -65,7 +68,7 @@ def normalize_str_list(
     if isinstance(value, list):
         items: list[str] = []
         for item in value:
-            text = normalize_str(item, max_length=500)
+            text = normalize_str(item, max_length=MAX_EVIDENCE_LINE_LENGTH)
             if text:
                 items.append(text)
             if len(items) >= max_items:
@@ -131,14 +134,10 @@ def normalize_remediation(
             value.get("verification_steps"),
             "remediation.verification_steps",
             finding_id,
+            MAX_VERIFICATION_ITEMS,
         )
-        or default.get("verification_steps", []),
-        "rollback_steps": normalize_str_list(
-            value.get("rollback_steps"),
-            "remediation.rollback_steps",
-            finding_id,
-        )
-        or default.get("rollback_steps", []),
+        or default.get("verification_steps", [])[:MAX_VERIFICATION_ITEMS],
+        "rollback_steps": [],
     }
 
 
@@ -178,7 +177,9 @@ def normalize_finding_payload(raw: dict[str, Any]) -> dict[str, Any]:
         ),
         "evidence": evidence,
         "root_cause": normalize_str(raw.get("root_cause"), "", "root_cause", finding_id),
-        "explanation": normalize_str(raw.get("explanation"), "", "explanation", finding_id),
+        "explanation": normalize_str(
+            raw.get("explanation"), "", "explanation", finding_id, MAX_ANALYSIS_LENGTH
+        ),
         "investigation_commands": commands,
         "remediation": remediation,
         "confidence": normalize_confidence(raw.get("confidence"), 50, "confidence", finding_id),

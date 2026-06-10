@@ -1,3 +1,4 @@
+import { sanitizeDiagnosis } from "@/lib/report-format";
 import api from "@/services/api";
 import type { InvestigateResponse } from "@/types/investigation";
 
@@ -22,7 +23,10 @@ export async function runInvestigation(
       { session_id: sessionId, cluster_context: clusterContext },
       { timeout: 180000 },
     );
-    return data;
+    return {
+      ...data,
+      diagnosis: sanitizeDiagnosis(data.diagnosis) ?? data.diagnosis,
+    };
   } catch (error) {
     throw new Error(extractApiError(error));
   }

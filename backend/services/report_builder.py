@@ -147,6 +147,24 @@ def _merge_finding(rule_finding: dict[str, Any], llm_finding: dict[str, Any] | N
     return finding
 
 
+def _dedupe_findings(findings: list[Finding]) -> list[Finding]:
+    seen: set[tuple[str, str, str]] = set()
+    unique: list[Finding] = []
+    for finding in findings:
+        key = (finding.namespace, finding.resource_type, finding.affected_resource)
+        if key in seen:
+            logger.info(
+                "Removed duplicate finding for {}/{} in {}",
+                finding.resource_type,
+                finding.affected_resource,
+                finding.namespace,
+            )
+            continue
+        seen.add(key)
+        unique.append(finding)
+    return unique
+
+
 def _llm_findings_index(llm_findings: list[dict[str, Any]]) -> dict[tuple[str, str, str], dict]:
     index: dict[tuple[str, str, str], dict] = {}
     for item in llm_findings:
@@ -205,6 +223,8 @@ def build_sre_report(
                 rule_finding.get("affected_resource"),
                 rule_finding.get("namespace"),
             )
+
+    findings = _dedupe_findings(findings)
 
     health_summary = build_cluster_health_summary(investigation, [f.model_dump() for f in findings])
     llm_score = (llm_response or {}).get("cluster_health_score")

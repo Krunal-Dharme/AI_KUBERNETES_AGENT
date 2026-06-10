@@ -15,13 +15,13 @@ export interface Finding {
   namespace: string;
   resource_type: string;
   current_state: string;
-  evidence: string[];
-  root_cause?: string;
-  explanation?: string;
-  investigation_commands: string[];
-  remediation: Remediation;
-  confidence: number;
-  confidence_reasoning?: string;
+  evidence: string[] | string;
+  root_cause?: string | null;
+  explanation?: string | null;
+  investigation_commands: string[] | string;
+  remediation?: Remediation | null;
+  confidence?: number | null;
+  confidence_reasoning?: string | string[] | null;
 }
 
 export interface ClusterHealthSummary {
@@ -52,7 +52,7 @@ export interface Diagnosis {
   kubectl_command: string;
   confidence: number;
   prevention_recommendation?: string;
-  confidence_reasoning?: string;
+  confidence_reasoning?: string | string[] | null;
   cluster_healthy?: boolean;
   executive_summary?: string;
   cluster_health_score?: number;

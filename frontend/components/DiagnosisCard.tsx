@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 
+import {
+  limitAnalysis,
+  safeString,
+  toBulletLines,
+  toTextLines,
+} from "@/lib/report-format";
 import type { Diagnosis, Finding, Severity } from "@/types/investigation";
 
 interface DiagnosisCardProps {
@@ -18,15 +24,61 @@ const SEVERITY_STYLES: Record<Severity, string> = {
 };
 
 function SeverityBadge({ severity }: { severity: Severity }) {
+  const label = SEVERITY_STYLES[severity] ? severity : "Medium";
   return (
-    <span className={`rounded px-2 py-0.5 text-xs font-medium ${SEVERITY_STYLES[severity]}`}>
-      {severity}
+    <span className={`rounded px-2 py-0.5 text-xs font-medium ${SEVERITY_STYLES[label]}`}>
+      {label}
     </span>
   );
 }
 
+function BulletList({ items }: { items: string[] }) {
+  if (!items.length) return null;
+  return (
+    <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-300">
+      {items.map((item, i) => (
+        <li key={`${i}-${item.slice(0, 24)}`} className="whitespace-pre-wrap break-words">
+          {item}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function CommandList({ commands }: { commands: string[] }) {
+  if (!commands.length) return null;
+  return (
+    <div className="mt-1 space-y-1">
+      {commands.map((cmd, i) => (
+        <code
+          key={`${i}-${cmd.slice(0, 24)}`}
+          className="block whitespace-pre-wrap break-all rounded bg-slate-900 px-3 py-2 font-mono text-xs text-emerald-300"
+        >
+          {cmd}
+        </code>
+      ))}
+    </div>
+  );
+}
+
 function FindingCard({ finding }: { finding: Finding }) {
-  const [open, setOpen] = useState(finding.severity === "Critical" || finding.severity === "High");
+  const [open, setOpen] = useState(
+    finding.severity === "Critical" || finding.severity === "High",
+  );
+
+  const evidence = toTextLines(finding.evidence as unknown);
+  const commands = toTextLines(finding.investigation_commands as unknown, 3, 500);
+  const verification = toTextLines(
+    finding.remediation?.verification_steps as unknown,
+    3,
+    500,
+  );
+  const confidenceReasons = toBulletLines(
+    finding.confidence_reasoning as unknown,
+  );
+  const rootCause = safeString(finding.root_cause);
+  const analysis = limitAnalysis(finding.explanation);
+  const immediateFix = safeString(finding.remediation?.immediate_fix);
 
   return (
     <article className="rounded-lg border border-slate-700 bg-slate-950/60">
@@ -49,96 +101,55 @@ function FindingCard({ finding }: { finding: Finding }) {
 
       {open && (
         <div className="space-y-4 border-t border-slate-800 px-4 py-4 text-sm">
-          <div>
-            <p className="text-slate-500">Current State</p>
-            <p className="mt-1 text-slate-300">{finding.current_state}</p>
-          </div>
-
-          {finding.evidence.length > 0 && (
-            <div>
-              <p className="text-slate-500">Evidence</p>
-              <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-300">
-                {finding.evidence.map((item, i) => (
-                  <li key={i}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {finding.root_cause && (
+          {rootCause && (
             <div>
               <p className="text-slate-500">Root Cause</p>
-              <p className="mt-1 text-white">{finding.root_cause}</p>
+              <p className="mt-1 whitespace-pre-wrap break-words font-medium text-white">
+                {rootCause}
+              </p>
             </div>
           )}
 
-          {finding.explanation && (
+          {analysis && (
             <div>
               <p className="text-slate-500">Analysis</p>
-              <p className="mt-1 text-slate-300">{finding.explanation}</p>
+              <p className="mt-1 whitespace-pre-wrap break-words text-slate-300">{analysis}</p>
             </div>
           )}
 
-          {finding.investigation_commands.length > 0 && (
+          {evidence.length > 0 && (
+            <div>
+              <p className="text-slate-500">Evidence</p>
+              <BulletList items={evidence} />
+            </div>
+          )}
+
+          {commands.length > 0 && (
             <div>
               <p className="text-slate-500">Investigation Commands</p>
-              <div className="mt-1 space-y-1">
-                {finding.investigation_commands.map((cmd) => (
-                  <code
-                    key={cmd}
-                    className="block rounded bg-slate-900 px-3 py-2 font-mono text-xs text-emerald-300"
-                  >
-                    {cmd}
-                  </code>
-                ))}
-              </div>
+              <CommandList commands={commands} />
             </div>
           )}
 
-          {finding.remediation?.immediate_fix && (
+          {immediateFix && (
             <div>
               <p className="text-slate-500">Immediate Fix</p>
-              <p className="mt-1 text-slate-300">{finding.remediation.immediate_fix}</p>
+              <p className="mt-1 whitespace-pre-wrap break-words text-slate-300">
+                {immediateFix}
+              </p>
             </div>
           )}
 
-          {finding.remediation?.verification_steps?.length > 0 && (
+          {verification.length > 0 && (
             <div>
               <p className="text-slate-500">Verification</p>
-              <div className="mt-1 space-y-1">
-                {finding.remediation.verification_steps.map((cmd) => (
-                  <code
-                    key={cmd}
-                    className="block rounded bg-slate-900 px-3 py-2 font-mono text-xs text-blue-300"
-                  >
-                    {cmd}
-                  </code>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {finding.remediation?.rollback_steps?.length > 0 && (
-            <div>
-              <p className="text-slate-500">Rollback</p>
-              <div className="mt-1 space-y-1">
-                {finding.remediation.rollback_steps.map((cmd) => (
-                  <code
-                    key={cmd}
-                    className="block rounded bg-slate-900 px-3 py-2 font-mono text-xs text-amber-300"
-                  >
-                    {cmd}
-                  </code>
-                ))}
-              </div>
+              <CommandList commands={verification} />
             </div>
           )}
 
           <div>
-            <p className="text-slate-500">Confidence: {finding.confidence}%</p>
-            {finding.confidence_reasoning && (
-              <p className="mt-1 text-xs text-slate-400">{finding.confidence_reasoning}</p>
-            )}
+            <p className="text-slate-500">Confidence: {finding.confidence ?? 0}%</p>
+            {confidenceReasons.length > 0 && <BulletList items={confidenceReasons} />}
           </div>
         </div>
       )}
@@ -149,10 +160,8 @@ function FindingCard({ finding }: { finding: Finding }) {
 export function DiagnosisCard({ diagnosis, clusterContext }: DiagnosisCardProps) {
   if (!diagnosis) return null;
 
-  const isHealthy = diagnosis.cluster_healthy;
-  const findings = diagnosis.findings ?? [];
-  const summary = diagnosis.cluster_health_summary;
-  const timeline = diagnosis.investigation_timeline ?? [];
+  const isHealthy = Boolean(diagnosis.cluster_healthy);
+  const findings = Array.isArray(diagnosis.findings) ? diagnosis.findings : [];
 
   return (
     <section
@@ -175,92 +184,48 @@ export function DiagnosisCard({ diagnosis, clusterContext }: DiagnosisCardProps)
         </div>
       )}
 
-      <div className="space-y-6 text-sm">
-        {diagnosis.executive_summary && (
-          <div>
-            <p className="text-slate-500">Executive Summary</p>
-            <p className="mt-1 text-slate-200">{diagnosis.executive_summary}</p>
-          </div>
-        )}
-
-        {typeof diagnosis.cluster_health_score === "number" && (
-          <div className="flex items-center gap-4">
+      {findings.length > 0 ? (
+        <div className="space-y-3">
+          <p className="text-sm text-slate-500">Findings ({findings.length})</p>
+          {findings.map((finding) => (
+            <FindingCard key={finding.id || `${finding.namespace}-${finding.affected_resource}`} finding={finding} />
+          ))}
+        </div>
+      ) : (
+        !isHealthy && (
+          <div className="space-y-4 text-sm">
             <div>
-              <p className="text-slate-500">Cluster Health Score</p>
-              <p className="mt-1 text-3xl font-bold text-blue-400">
-                {diagnosis.cluster_health_score}%
+              <p className="text-slate-500">Root Cause</p>
+              <p className="mt-1 whitespace-pre-wrap break-words font-medium text-white">
+                {safeString(diagnosis.root_cause)}
               </p>
             </div>
-            {summary && (
-              <div className="grid flex-1 grid-cols-2 gap-2 text-xs text-slate-400 md:grid-cols-3">
-                <p>Nodes: {summary.nodes_ready}</p>
-                <p>
-                  Pods: {summary.pods_running} running, {summary.pods_failed} failed,{" "}
-                  {summary.pods_pending} pending
+            {diagnosis.explanation && (
+              <div>
+                <p className="text-slate-500">Analysis</p>
+                <p className="mt-1 whitespace-pre-wrap break-words text-slate-300">
+                  {limitAnalysis(diagnosis.explanation)}
                 </p>
-                <p>
-                  Deployments: {summary.deployments_healthy} healthy,{" "}
-                  {summary.deployments_degraded} degraded
-                </p>
-                <p>Missing endpoints: {summary.services_missing_endpoints}</p>
-                <p>Critical: {summary.critical_findings}</p>
-                <p>High: {summary.high_findings}</p>
               </div>
             )}
-          </div>
-        )}
-
-        {timeline.length > 0 && (
-          <div>
-            <p className="text-slate-500">Investigation Timeline</p>
-            <ol className="mt-2 space-y-1 text-xs text-slate-400">
-              {timeline.map((step) => (
-                <li key={step.step}>
-                  Step {step.step}: {step.action}
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
-
-        {findings.length > 0 ? (
-          <div className="space-y-3">
-            <p className="text-slate-500">
-              Findings ({findings.length})
-            </p>
-            {findings.map((finding) => (
-              <FindingCard key={finding.id} finding={finding} />
-            ))}
-          </div>
-        ) : (
-          !isHealthy && (
-            <div className="space-y-4">
+            {diagnosis.fix && (
               <div>
-                <p className="text-slate-500">Root Cause</p>
-                <p className="mt-1 font-medium text-white">{diagnosis.root_cause}</p>
+                <p className="text-slate-500">Immediate Fix</p>
+                <p className="mt-1 whitespace-pre-wrap break-words text-slate-300">
+                  {safeString(diagnosis.fix)}
+                </p>
               </div>
-              <div>
-                <p className="text-slate-500">Explanation</p>
-                <p className="mt-1 text-slate-300">{diagnosis.explanation}</p>
-              </div>
-              <div>
-                <p className="text-slate-500">Suggested Fix</p>
-                <p className="mt-1 text-slate-300">{diagnosis.fix}</p>
-              </div>
-              <code className="block rounded-lg bg-slate-950 px-3 py-2 font-mono text-xs text-emerald-300">
-                {diagnosis.kubectl_command}
+            )}
+            {diagnosis.kubectl_command && (
+              <code className="block whitespace-pre-wrap break-all rounded-lg bg-slate-950 px-3 py-2 font-mono text-xs text-emerald-300">
+                {safeString(diagnosis.kubectl_command)}
               </code>
-            </div>
-          )
-        )}
-
-        {diagnosis.prevention_recommendation && (
-          <div>
-            <p className="text-slate-500">Prevention</p>
-            <p className="mt-1 text-slate-300">{diagnosis.prevention_recommendation}</p>
+            )}
+            <p className="text-slate-500">Confidence: {diagnosis.confidence ?? 0}%</p>
+            <BulletList items={toBulletLines(diagnosis.confidence_reasoning)} />
           </div>
-        )}
-      </div>
+        )
+      )}
     </section>
   );
 }
