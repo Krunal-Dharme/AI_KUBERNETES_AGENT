@@ -59,6 +59,8 @@ class KubectlExecutor:
 
     def _build_kubectl_command(self, *args: str) -> list[str]:
         command = ["kubectl"]
+        if self.kubeconfig_path:
+            command.extend(["--kubeconfig", self.kubeconfig_path])
         if self.context:
             command.extend(["--context", self.context])
         command.extend(args)

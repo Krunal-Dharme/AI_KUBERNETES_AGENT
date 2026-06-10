@@ -9,6 +9,7 @@ DOCKER_KUBECONFIG_PATH = "/kube/config"
 
 DEFAULT_CANDIDATE_PATHS = (
     DOCKER_KUBECONFIG_PATH,
+    "/var/lib/jenkins/.kube/config",
     "/home/kunudharme/.kube/config",
 )
 
@@ -53,6 +54,12 @@ def _expand_candidates(configured: str) -> list[str]:
 def resolve_kubeconfig_path(configured: str = "") -> str:
     """Resolve the first existing kubeconfig file from env and defaults."""
     explicit = _explicit_configured_path(configured)
+
+    # Honour an explicitly configured path before scanning other defaults.
+    if explicit and Path(explicit).is_file():
+        resolved = str(Path(explicit).resolve())
+        logger.debug("Resolved kubeconfig path (explicit): {}", resolved)
+        return resolved
 
     for path in _expand_candidates(configured):
         if Path(path).is_file():

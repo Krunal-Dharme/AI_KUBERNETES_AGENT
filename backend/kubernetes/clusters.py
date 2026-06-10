@@ -3,7 +3,11 @@ from loguru import logger
 from core.config import settings
 from core.errors import friendly_kubectl_error
 from core.kubeconfig import get_kubeconfig_status
-from kubernetes.executor import KubectlExecutor, summarize_stderr
+from kubernetes.executor import KubectlExecutor
+from kubernetes.kubeconfig_parser import (
+    parse_clusters_from_kubeconfig,
+    parse_clusters_from_yaml,
+)
 
 
 class ClusterDiscovery:
@@ -16,60 +20,54 @@ class ClusterDiscovery:
         status = get_kubeconfig_status(
             self.executor.kubeconfig_path or settings.kubeconfig_path
         )
-        kubeconfig_path = status["path"]
+        kubeconfig_path = self.executor.kubeconfig_path or settings.kubeconfig_path
 
         if not status["configured"]:
             return {
                 "healthy": False,
                 "error": status["error"],
-                "kubeconfig_path": kubeconfig_path,
+                "kubeconfig_path": kubeconfig_path or status["path"],
                 "current_context": "",
                 "clusters": [],
             }
 
-        config, result = self.executor.run_json("config", "view", "--minify=false")
+        if status.get("mode") == "ssh":
+            return self._list_clusters_via_kubectl(kubeconfig_path, status["path"])
 
-        if config is None:
+        parsed = parse_clusters_from_kubeconfig(kubeconfig_path)
+        if parsed["healthy"]:
+            return {**parsed, "kubeconfig_path": kubeconfig_path}
+
+        logger.warning(
+            "Direct kubeconfig parse failed ({}), falling back to kubectl",
+            parsed.get("error"),
+        )
+        return self._list_clusters_via_kubectl(kubeconfig_path, kubeconfig_path)
+
+    def _list_clusters_via_kubectl(self, kubeconfig_path: str, display_path: str) -> dict:
+        result = self.executor.run(
+            "config",
+            "view",
+            "--kubeconfig",
+            kubeconfig_path,
+            "--minify=false",
+        )
+
+        if not result.success or not result.stdout.strip():
             return {
                 "healthy": False,
                 "error": friendly_kubectl_error(result),
-                "kubeconfig_path": kubeconfig_path,
+                "kubeconfig_path": display_path,
                 "current_context": "",
                 "clusters": [],
             }
 
-        current_context = config.get("current-context", "")
-        cluster_map = {
-            item.get("name", ""): item.get("cluster", {})
-            for item in config.get("clusters", [])
-        }
-
-        clusters = []
-        for ctx in config.get("contexts", []):
-            name = ctx.get("name", "")
-            context = ctx.get("context", {})
-            cluster_name = context.get("cluster", "")
-            cluster_info = cluster_map.get(cluster_name, {})
-            server = cluster_info.get("server", "unknown")
-
-            clusters.append(
-                {
-                    "name": name,
-                    "cluster": cluster_name,
-                    "server": server,
-                    "is_current": name == current_context,
-                    "is_gke": "gke" in name.lower() or "googleapis.com" in server,
-                }
-            )
-
-        logger.info("Discovered {} cluster context(s)", len(clusters))
+        parsed = parse_clusters_from_yaml(result.stdout)
+        logger.info("Discovered {} cluster context(s) via kubectl", len(parsed["clusters"]))
 
         return {
-            "healthy": len(clusters) > 0,
-            "error": None if clusters else "No cluster contexts found in kubeconfig.",
-            "kubeconfig_path": kubeconfig_path,
-            "current_context": current_context,
-            "clusters": clusters,
+            **parsed,
+            "kubeconfig_path": display_path,
         }
 
     def verify_connection(self, context: str | None = None) -> dict:

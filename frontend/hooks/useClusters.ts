@@ -8,6 +8,7 @@ export function useClusters() {
   return useQuery({
     queryKey: ["clusters"],
     queryFn: fetchClusters,
-    staleTime: 30000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }

@@ -16,11 +16,10 @@ export function ClusterSelector({ selected, onSelect }: ClusterSelectorProps) {
   useEffect(() => {
     if (!data || initialized) return;
 
-    const defaultContext =
-      data.clusters.find((c) => c.is_current)?.name || data.clusters[0]?.name || "";
-
-    if (defaultContext && !selected) {
-      onSelect(defaultContext);
+    // Single cluster: auto-select for backward compatibility.
+    // Multiple clusters: require explicit user selection.
+    if (data.clusters.length === 1 && !selected) {
+      onSelect(data.clusters[0].name);
     }
     setInitialized(true);
   }, [data, initialized, onSelect, selected]);
@@ -52,6 +51,11 @@ export function ClusterSelector({ selected, onSelect }: ClusterSelectorProps) {
       <p className="mt-1 text-xs text-slate-500">
         From: {data.kubeconfig_path}
       </p>
+      {data.clusters.length > 1 && !selected && (
+        <p className="mt-2 text-sm text-amber-300">
+          {data.clusters.length} clusters found — select one to investigate.
+        </p>
+      )}
 
       <ul className="mt-4 space-y-2">
         {data.clusters.map((cluster) => (

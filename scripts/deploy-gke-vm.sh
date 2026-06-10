@@ -5,7 +5,9 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_DIR"
 
-KUBECONFIG_PATH="${KUBECONFIG_PATH:-/home/kunudharme/.kube/config}"
+KUBECONFIG_PATH="${KUBECONFIG_PATH:-/var/lib/jenkins/.kube/config}"
+export HOST_KUBECONFIG_PATH="${HOST_KUBECONFIG_PATH:-$KUBECONFIG_PATH}"
+export HOST_GCLOUD_CONFIG_PATH="${HOST_GCLOUD_CONFIG_PATH:-/var/lib/jenkins/.config/gcloud}"
 
 if [ ! -f "$KUBECONFIG_PATH" ]; then
   echo "ERROR: kubeconfig not found at $KUBECONFIG_PATH"

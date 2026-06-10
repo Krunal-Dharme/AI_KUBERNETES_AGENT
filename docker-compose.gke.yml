@@ -8,8 +8,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile.gke
     volumes:
-      - /home/kunudharme/.kube/config:/kube/config:ro
-      - /home/kunudharme/.config/gcloud:/root/.config/gcloud
+      - ${HOST_KUBECONFIG_PATH:-/var/lib/jenkins/.kube/config}:/kube/config:ro
+      - ${HOST_GCLOUD_CONFIG_PATH:-/var/lib/jenkins/.config/gcloud}:/root/.config/gcloud:ro
     environment:
       KUBECONFIG_PATH: /kube/config
       CLOUDSDK_CONFIG: /root/.config/gcloud
