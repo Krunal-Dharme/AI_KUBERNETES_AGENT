@@ -9,7 +9,7 @@ services:
       dockerfile: Dockerfile.gke
     volumes:
       - ${HOST_KUBECONFIG_PATH:-/var/lib/jenkins/.kube/config}:/kube/config:ro
-      - ${HOST_GCLOUD_CONFIG_PATH:-/var/lib/jenkins/.config/gcloud}:/root/.config/gcloud:ro
+      - ${HOST_GCLOUD_CONFIG_PATH:-/var/lib/jenkins/.config/gcloud}:/root/.config/gcloud
     environment:
       KUBECONFIG_PATH: /kube/config
       CLOUDSDK_CONFIG: /root/.config/gcloud
